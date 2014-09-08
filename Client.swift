@@ -10,7 +10,14 @@ import UIKit
 
 class Client: NSObject, NSURLSessionDelegate, NSURLSessionTaskDelegate {
     let server = "http://google.com"
-    let session: NSURLSession!
+   private let session: NSURLSession!
+    
+    enum httpMethod: String {
+        case GET = "GET"
+        case POST = "POST"
+        case PUT = "PUT"
+        case DELETE = "DELETE"
+    }
     
       override init() {
         let config = NSURLSessionConfiguration.defaultSessionConfiguration()
@@ -20,15 +27,61 @@ class Client: NSObject, NSURLSessionDelegate, NSURLSessionTaskDelegate {
         self.session = NSURLSession(configuration: config,
             delegate: self, delegateQueue: nil);
     }
-
-
-   func fetchJSONFromURLWithDownload(url:NSURL) {
-    UIApplication.sharedApplication().networkActivityIndicatorVisible = true;
-    println("Fetching \(url.absoluteString)")
     
-    let downloadTask = self.session.downloadTaskWithURL(url, completionHandler: { (location, response, error) -> Void in
-        UIApplication.sharedApplication().networkActivityIndicatorVisible = false;
+    //Sends a Post Request to URL
+    func sendPostRequestTo(url:String, httpHeaders : [String: String]? = nil, httpBody: NSData? = nil) {
+        fetchJSONFromURLWith(NSURL(string: url), httpMeth: .POST, httpHeaders: httpHeaders, httpBody: httpBody)
+    }
+    //Sends a Get Request to URL, set Download to true if request is returning a document
+    func sendGetRequestTo(url:String,isDownload:Bool, httpHeaders: [String: String]? = nil, httpBody: NSData? = nil) {
+        if(isDownload) {
+            fetchJSONFromURLWithDownload(NSURL(string: url))
+        }
+        else {
+            fetchJSONFromURLWith(NSURL(string: url), httpHeaders: httpHeaders, httpBody: httpBody)
+        }
+    }
+   private func getURLWith(append: String) -> NSURL {
+        return NSURL(string: server + append)
+    }
+    
+   private func initialiseRequest(url :NSURL) {
+        UIApplication.sharedApplication().networkActivityIndicatorVisible = true;
+        println("Fetching \(url.absoluteString)")
 
+    }
+    
+   private func deinitRequest() {
+        UIApplication.sharedApplication().networkActivityIndicatorVisible = false;
+    }
+ 
+    private func fetchJSONFromURLWith(url:NSURL, httpMeth: httpMethod = .GET, httpHeaders : [String: String]?, httpBody: NSData?) {
+        var request = NSMutableURLRequest(URL: url)
+        if let headers = httpHeaders {
+            for (key,value) in headers {
+                request.addValue(value,forHTTPHeaderField: key);
+            }
+        
+        }
+        
+        request.HTTPMethod = httpMeth.toRaw()
+        if (httpMeth == httpMethod.POST && httpBody != nil) {
+            if let postData = NSJSONSerialization.dataWithJSONObject(httpBody!, options: nil, error: nil) {
+                request.HTTPBody = postData;
+            }
+        }
+        
+        let dataTask = session.dataTaskWithRequest(request)
+        initialiseRequest(url)
+        dataTask.resume()
+    }
+
+    
+   private func fetchJSONFromURLWithDownload(url:NSURL) {
+    
+    initialiseRequest(url)
+    let downloadTask = self.session.downloadTaskWithURL(url, completionHandler: { (location, response, error) -> Void in
+        self.deinitRequest()
         var statusCode = 400;
         if let resp = response as? NSHTTPURLResponse {
             statusCode = resp.statusCode
@@ -64,5 +117,8 @@ class Client: NSObject, NSURLSessionDelegate, NSURLSessionTaskDelegate {
     })
     downloadTask.resume();
     }
+    
+    
+    
     
 }

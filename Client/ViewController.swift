@@ -14,6 +14,9 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         let client = Client();
+        client.sendGetRequestTo("http://pricetag.net.au/api/products/175", isDownload: true)
+        
+        
      
         
         // Do any additional setup after loading the view, typically from a nib.
